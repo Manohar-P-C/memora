@@ -14,6 +14,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenPreferencesModal,
 }) => {
   const [isExporting, setIsExporting] = useState(false);
+  const [folderOpened, setFolderOpened] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -34,6 +35,18 @@ export const Footer: React.FC<FooterProps> = ({
       console.error('Failed to export archive:', err);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleOpenDataFolder = async () => {
+    try {
+      const res = await fetch('/api/system/open-data-folder', { method: 'POST' });
+      if (res.ok) {
+        setFolderOpened(true);
+        setTimeout(() => setFolderOpened(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to open data folder:', err);
     }
   };
 
@@ -60,6 +73,14 @@ export const Footer: React.FC<FooterProps> = ({
           className="text-secondary hover:text-on-surface transition-colors duration-150 cursor-pointer"
         >
           {isExporting ? 'Exporting...' : 'Export Archive'}
+        </button>
+        <button
+          type="button"
+          onClick={handleOpenDataFolder}
+          className="text-secondary hover:text-on-surface transition-colors duration-150 cursor-pointer"
+          title="Open the .data folder where all your memories and uploads are stored"
+        >
+          {folderOpened ? '✓ Opened!' : '📂 Data Folder'}
         </button>
         <button
           type="button"
