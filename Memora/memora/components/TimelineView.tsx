@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { Memory, ImportantDate } from '@/types/memory';
@@ -11,12 +11,14 @@ interface TimelineViewProps {
   memories: Memory[];
   dates: ImportantDate[];
   onSelectMemory?: (memory: Memory) => void;
+  onDeleteMemory?: (id: string) => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
   memories,
   dates,
   onSelectMemory,
+  onDeleteMemory,
 }) => {
   const containerRef = useRef<HTMLElement>(null);
 
@@ -101,9 +103,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                   {ev.type}
                 </span>
               </div>
-              <time className="font-label-sm text-label-sm text-secondary font-mono">
-                {ev.date}
-              </time>
+              <div className="flex items-center gap-3">
+                <time className="font-label-sm text-label-sm text-secondary font-mono">
+                  {ev.date}
+                </time>
+                {/* Delete button — only for real memories, not milestone dates */}
+                {!ev.isDeadline && ev.memory && (
+                  <TimelineDeleteButton
+                    memoryId={ev.memory.id}
+                    onDelete={onDeleteMemory}
+                  />
+                )}
+              </div>
             </div>
 
             {ev.summary && (
@@ -117,4 +128,48 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     </section>
   );
 };
+
+// --- Small helper component for per-event delete in Timeline ---
+function TimelineDeleteButton({
+  memoryId,
+  onDelete,
+}: {
+  memoryId: string;
+  onDelete?: (id: string) => void;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm) {
+      setConfirm(true);
+      setTimeout(() => setConfirm(false), 3000);
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/memories/${memoryId}`, { method: 'DELETE' });
+      if (res.ok) onDelete?.(memoryId);
+    } catch (err) {
+      console.error('Delete error:', err);
+    } finally {
+      setDeleting(false);
+      setConfirm(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={deleting}
+      className={`font-label-sm text-label-sm transition-colors cursor-pointer opacity-0 group-hover:opacity-100 ${
+        confirm ? 'text-red-500 font-semibold' : 'text-outline hover:text-red-500'
+      }`}
+    >
+      {deleting ? 'Deleting…' : confirm ? '⚠ Confirm?' : '🗑'}
+    </button>
+  );
+}
 
