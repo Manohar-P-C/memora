@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { FolderOpenIcon } from './Icons';
+
 
 gsap.registerPlugin(useGSAP);
 
@@ -132,24 +132,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right-aligned action cluster */}
       <div className="flex items-center space-x-3">
-        {onSelectFolderClick && (
-          <button
-            onClick={onSelectFolderClick}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-secondary hover:text-on-surface hover:bg-surface-container border border-outline-variant font-label-md text-label-md transition-all duration-150 cursor-pointer group"
-            type="button"
-            title="Select any folder from your computer to index"
-          >
-            <FolderOpenIcon className="w-4 h-4 text-secondary group-hover:text-on-surface" />
-            <span>Select Folder</span>
-          </button>
-        )}
-        <button
-          onClick={onSearchFocus}
-          className="hidden md:inline-flex items-center text-secondary hover:text-on-surface font-label-md text-label-md transition-colors duration-150 cursor-pointer"
-          type="button"
-        >
-          Search ⌘K
-        </button>
+
         <button
           ref={addBtnRef}
           onClick={onAddMemoryClick}

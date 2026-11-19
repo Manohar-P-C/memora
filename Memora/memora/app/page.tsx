@@ -178,6 +178,18 @@ export default function Home() {
     }
   };
 
+  // Delete memory handler — removes from local state immediately
+  const handleDeleteMemory = (id: string) => {
+    setMemories((prev) => prev.filter((m) => m.id !== id));
+    // Also close the viewer modal if the deleted memory is currently open
+    setSelectedMemory((prev) => (prev?.id === id ? null : prev));
+    // Refresh dates as a deleted memory may have had upcoming dates
+    fetch('/api/dates')
+      .then((res) => res.json())
+      .then((data) => { if (data.dates) setDates(data.dates); })
+      .catch(() => {});
+  };
+
   // Click on related memory
   const handleRelatedClick = (relatedTitle: string) => {
     setSearchQuery(relatedTitle);
@@ -250,6 +262,7 @@ export default function Home() {
             memories={memories}
             dates={dates}
             onSelectMemory={setSelectedMemory}
+            onDeleteMemory={handleDeleteMemory}
           />
         ) : currentTab === 'dont_forget' ? (
           <DontForgetView
@@ -290,6 +303,7 @@ export default function Home() {
               onSelectMemory={setSelectedMemory}
               onViewAllClick={() => setCurrentTab('timeline')}
               totalCount={memories.length}
+              onDeleteMemory={handleDeleteMemory}
             />
 
             {/* Section: Drop Something You Don't Want to Forget */}

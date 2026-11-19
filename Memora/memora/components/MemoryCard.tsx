@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import gsap from 'gsap';
 import { Memory } from '@/types/memory';
 import { ArrowNorthEastIcon } from './Icons';
@@ -10,6 +10,7 @@ interface MemoryCardProps {
   onViewSource?: (memory: Memory) => void;
   onTagClick?: (tag: string) => void;
   onSelectMemory?: (memory: Memory) => void;
+  onDelete?: (id: string) => void;
 }
 
 export const MemoryCard: React.FC<MemoryCardProps> = ({
@@ -17,9 +18,12 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({
   onViewSource,
   onTagClick,
   onSelectMemory,
+  onDelete,
 }) => {
   const cardRef = useRef<HTMLElement>(null);
   const arrowRef = useRef<HTMLSpanElement>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const filename = memory.source_file?.filename || memory.absolute_path || memory.title || '';
   const isImage = /\.(jpe?g|png|webp|gif|svg)$/i.test(filename) || memory.source_file?.mime_type?.startsWith('image/');
@@ -40,6 +44,45 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({
     detailsText = `${amountStr} · ${detailsText}`;
   }
 
+  // Calculate upcoming milestone or expiration badge if available
+  const nextDate = memory.important_dates && memory.important_dates.length > 0
+    ? memory.important_dates[0]
+    : null;
+
+  let expirationBadge: { text: string; colorClass: string } | null = null;
+  if (nextDate && nextDate.date) {
+    const target = new Date(nextDate.date).getTime();
+    if (!isNaN(target)) {
+      const diffDays = Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) {
+        expirationBadge = {
+          text: `${nextDate.label}: Expired (${Math.abs(diffDays)}d ago)`,
+          colorClass: 'bg-red-500/10 text-red-600 border-red-300 dark:border-red-900',
+        };
+      } else if (diffDays <= 7) {
+        expirationBadge = {
+          text: `${nextDate.label}: in ${diffDays}d`,
+          colorClass: 'bg-red-500/10 text-red-600 border-red-300 dark:border-red-900 font-medium',
+        };
+      } else if (diffDays <= 30) {
+        expirationBadge = {
+          text: `${nextDate.label}: in ${diffDays}d`,
+          colorClass: 'bg-amber-500/10 text-amber-600 border-amber-300 dark:border-amber-900',
+        };
+      } else {
+        expirationBadge = {
+          text: `${nextDate.label}: ${nextDate.date}`,
+          colorClass: 'bg-surface-container text-secondary border-outline-variant',
+        };
+      }
+    }
+  }
+
+  // Clean filename representation instead of showing huge raw path string
+  const displayPath = memory.absolute_path
+    ? memory.absolute_path.split(/[\\/]/).pop() || memory.absolute_path
+    : '';
+
   const handleMouseEnter = () => {
     if (arrowRef.current) {
       gsap.to(arrowRef.current, {
@@ -59,6 +102,28 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({
         duration: 0.25,
         ease: 'power2.out',
       });
+    }
+  };
+
+  const handleDeleteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!showConfirm) {
+      setShowConfirm(true);
+      // Auto-dismiss confirm after 3 seconds if not acted on
+      setTimeout(() => setShowConfirm(false), 3000);
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/memories/${memory.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onDelete?.(memory.id);
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+    } finally {
+      setIsDeleting(false);
+      setShowConfirm(false);
     }
   };
 
@@ -84,13 +149,20 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({
 
       <div className="flex-grow min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 mb-1">
-          <div className="flex items-center space-x-3 min-w-0">
+          <div className="flex items-center space-x-2.5 min-w-0 flex-wrap gap-y-1">
             <h3 className="font-headline-sm text-headline-sm text-on-surface truncate">
               {memory.title}
             </h3>
             <span className="text-secondary font-label-sm text-label-sm uppercase tracking-wide flex-shrink-0">
               {typeBadge}
             </span>
+            {expirationBadge && (
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded-full border ${expirationBadge.colorClass} flex-shrink-0`}
+              >
+                ⏱ {expirationBadge.text}
+              </span>
+            )}
           </div>
           <time className="font-label-sm text-label-sm text-secondary flex-shrink-0">
             {memory.date || 'Recent'}
@@ -128,10 +200,11 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({
                     body: JSON.stringify({ filePath: memory.absolute_path, action: 'reveal' }),
                   });
                 }}
-                className="text-secondary font-label-sm text-label-sm font-mono hover:text-on-surface hover:underline truncate max-w-xs cursor-pointer transition-colors"
-                title={`Reveal in Explorer: ${memory.absolute_path}`}
+                className="text-secondary font-label-sm text-label-sm hover:text-on-surface hover:underline truncate max-w-[180px] sm:max-w-xs cursor-pointer transition-colors inline-flex items-center gap-1"
+                title={`Click to reveal in Explorer:\n${memory.absolute_path}`}
               >
-                📍 {memory.absolute_path}
+                <span>📍</span>
+                <span className="truncate">{displayPath}</span>
               </span>
             </>
           )}
@@ -157,6 +230,21 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({
               </span>
             </>
           )}
+
+          {/* Delete button — right-aligned */}
+          <span className="text-outline-variant">·</span>
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            disabled={isDeleting}
+            className={`font-label-sm text-label-sm transition-colors cursor-pointer ${
+              showConfirm
+                ? 'text-red-500 hover:text-red-700 font-semibold'
+                : 'text-outline hover:text-red-500'
+            }`}
+          >
+            {isDeleting ? 'Deleting…' : showConfirm ? '⚠ Confirm delete?' : '🗑 Delete'}
+          </button>
         </div>
       </div>
     </article>

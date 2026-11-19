@@ -66,7 +66,17 @@ export const RememberSoon: React.FC<RememberSoonProps> = ({
                 )}
               </div>
               <div className="flex items-center space-x-4 flex-shrink-0">
-                <span className="font-label-sm text-label-sm bg-surface-container border border-outline-variant px-2.5 py-0.5 rounded text-on-surface group-hover:border-outline transition-colors">
+                <span
+                  className={`font-label-sm text-label-sm border px-2.5 py-0.5 rounded transition-colors ${
+                    item.relativeDays !== undefined && item.relativeDays < 0
+                      ? 'bg-red-500/10 text-red-600 border-red-300 dark:border-red-900'
+                      : item.relativeDays !== undefined && item.relativeDays <= 7
+                      ? 'bg-red-500/10 text-red-600 border-red-300 dark:border-red-900 font-medium'
+                      : item.relativeDays !== undefined && item.relativeDays <= 30
+                      ? 'bg-amber-500/10 text-amber-600 border-amber-300 dark:border-amber-900'
+                      : 'bg-surface-container border-outline-variant text-on-surface group-hover:border-outline'
+                  }`}
+                >
                   {item.relativeFormatted || 'Upcoming'}
                 </span>
                 <span className="text-secondary group-hover:translate-x-1 group-hover:text-on-surface transition-all duration-150">
